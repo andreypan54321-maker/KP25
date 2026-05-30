@@ -112,41 +112,52 @@ struct Board
     }
 };
 
-// вивід двох полів поряд
 void printBothBoards(const Board &player, const Board &computer)
 {
     cout << "\n  Ваше поле              Поле суперника\n";
     cout << "   A B C D E F G H I J     A B C D E F G H I J\n";
     for (int i = 0; i < player.size; ++i)
     {
-        // ліве поле
         cout << (i < 9 ? " " : "") << i + 1 << " ";
         for (int j = 0; j < player.size; ++j)
         {
             char ch = '.';
             switch (player.grid[i][j])
             {
-            case Cell::Ship: ch = '#'; break;
-            case Cell::Hit:  ch = 'X'; break;
-            case Cell::Miss: ch = '*'; break;
-            default: break;
+            case Cell::Ship:
+                ch = '#';
+                break;
+            case Cell::Hit:
+                ch = 'X';
+                break;
+            case Cell::Miss:
+                ch = '*';
+                break;
+            default:
+                break;
             }
             cout << ch << ' ';
         }
 
         cout << "    ";
 
-        // праве поле (кораблі приховані)
         cout << (i < 9 ? " " : "") << i + 1 << " ";
         for (int j = 0; j < computer.size; ++j)
         {
             char ch = '.';
             switch (computer.grid[i][j])
             {
-            case Cell::Ship: ch = '.'; break; // приховано
-            case Cell::Hit:  ch = 'X'; break;
-            case Cell::Miss: ch = '*'; break;
-            default: break;
+            case Cell::Ship:
+                ch = '.';
+                break;
+            case Cell::Hit:
+                ch = 'X';
+                break;
+            case Cell::Miss:
+                ch = '*';
+                break;
+            default:
+                break;
             }
             cout << ch << ' ';
         }
@@ -179,22 +190,14 @@ void placeRandom(Board &b, mt19937 &rng)
 void placeManual(Board &b)
 {
     const vector<int> fleet = {4, 3, 3, 2, 2, 2, 1, 1, 1, 1};
-    const vector<string> names = {
-        "4-палубний",
-        "3-палубний №1", "3-палубний №2",
-        "2-палубний №1", "2-палубний №2", "2-палубний №3",
-        "1-палубний №1", "1-палубний №2", "1-палубний №3", "1-палубний №4"};
-
     for (int k = 0; k < (int)fleet.size(); ++k)
     {
         int len = fleet[k];
         bool placed = false;
-
         while (!placed)
         {
             b.print();
-            cout << "\nСтавимо: " << names[k] << " (розмір " << len << ")\n";
-
+            cout << "\nСтавимо корабель (розмір " << len << ")\n";
             cout << "Стовпець (A-J): ";
             char colCh;
             cin >> colCh;
@@ -204,7 +207,6 @@ void placeManual(Board &b)
                 cout << "Невірно!\n";
                 continue;
             }
-
             cout << "Рядок (1-10): ";
             int row;
             if (!(cin >> row) || row < 1 || row > 10)
@@ -214,16 +216,14 @@ void placeManual(Board &b)
                 cout << "Невірно!\n";
                 continue;
             }
-
             bool horiz = true;
             if (len > 1)
             {
                 cout << "Напрямок г/в: ";
                 string d;
                 cin >> d;
-                horiz = (d == "г" || d == "Г" || d == "g" || d == "G");
+                horiz = (d == "г" || d == "Г");
             }
-
             int r = row - 1, c = colCh - 'A';
             if (b.canPlace(r, c, len, horiz))
             {
@@ -238,18 +238,14 @@ void placeManual(Board &b)
     }
 }
 
-// AI — спочатку добиває після влучання, потім стріляє випадково
 struct AI
 {
-    vector<pair<int,int>> targets; // клітинки для добивання
-    vector<vector<bool>> shot;     // вже стріляли сюди
+    vector<pair<int, int>> targets;
+    vector<vector<bool>> shot;
     mt19937 rng;
-
     AI(int size) : shot(size, vector<bool>(size, false)), rng(random_device{}()) {}
-
-    pair<int,int> nextShot(int size)
+    pair<int, int> nextShot(int size)
     {
-        // якщо є цілі для добивання — беремо першу
         while (!targets.empty())
         {
             auto [r, c] = targets.back();
@@ -257,8 +253,6 @@ struct AI
             if (r >= 0 && r < size && c >= 0 && c < size && !shot[r][c])
                 return {r, c};
         }
-
-        // інакше — випадковий постріл
         uniform_int_distribution<int> dist(0, size - 1);
         while (true)
         {
@@ -267,10 +261,8 @@ struct AI
                 return {r, c};
         }
     }
-
     void registerHit(int r, int c, int size)
     {
-        // додаємо сусідні клітинки як цілі
         const int dr[] = {-1, 1, 0, 0};
         const int dc[] = {0, 0, -1, 1};
         for (int i = 0; i < 4; ++i)
@@ -282,89 +274,43 @@ struct AI
     }
 };
 
-// хід гравця
 bool playerTurn(Board &computer)
 {
     while (true)
     {
-        cout << "Ваш хід. Введіть координати (наприклад A5): ";
+        cout << "Ваш хід (наприклад A5): ";
         string input;
         cin >> input;
-
         if (input.size() < 2)
-        {
-            cout << "Невірний формат!\n";
             continue;
-        }
-
         char colCh = toupper(input[0]);
-        if (colCh < 'A' || colCh > 'J')
+        int row = stoi(input.substr(1));
+        if (colCh < 'A' || colCh > 'J' || row < 1 || row > 10)
+            continue;
+        try
         {
-            cout << "Невірний стовпець!\n";
-            continue;
+            return computer.shoot(row - 1, colCh - 'A');
         }
-
-        int row;
-        try {
-            row = stoi(input.substr(1));
-        } catch (...) {
-            cout << "Невірний рядок!\n";
-            continue;
-        }
-
-        if (row < 1 || row > 10)
+        catch (...)
         {
-            cout << "Рядок від 1 до 10!\n";
-            continue;
-        }
-
-        int r = row - 1, c = colCh - 'A';
-
-        try {
-            bool hit = computer.shoot(r, c);
-            cout << (hit ? "Влучив!\n" : "Промах!\n");
-            return hit;
-        } catch (invalid_argument &e) {
-            cout << e.what() << "\n";
+            cout << "Вже стріляв!\n";
         }
     }
-}
-
-// хід комп'ютера
-bool aiTurn(Board &player, AI &ai)
-{
-    auto [r, c] = ai.nextShot(player.size);
-    ai.shot[r][c] = true;
-
-    bool hit = player.shoot(r, c);
-    char col = 'A' + c;
-    cout << "Комп'ютер стріляє: " << col << r + 1;
-    cout << (hit ? " — Влучив!\n" : " — Промах!\n");
-
-    if (hit)
-        ai.registerHit(r, c, player.size);
-
-    return hit;
 }
 
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
-
     mt19937 rng(random_device{}());
-
     cout << "=== МОРСЬКИЙ БІЙ ===\n\n";
 
     Board playerBoard, computerBoard;
     AI ai(10);
 
-    // розстановка кораблів гравця
-    cout << "Розставте свої кораблі.\n";
     cout << "1 - вручну  2 - автоматично: ";
     int choice;
     cin >> choice;
-
     if (choice == 1)
         placeManual(playerBoard);
     else
@@ -372,35 +318,57 @@ int main()
 
     placeRandom(computerBoard, rng);
 
-    cout << "\nГра починається!\n";
+    bool gameOver = false;
 
-    // головний ігровий цикл
-    while (true)
+    while (!gameOver)
     {
         printBothBoards(playerBoard, computerBoard);
 
-        // хід гравця
-        bool playerHit = playerTurn(computerBoard);
-        if (computerBoard.allSunk())
+        if (playerTurn(computerBoard))
         {
-            printBothBoards(playerBoard, computerBoard);
-            cout << "Вітаємо! Ви перемогли!\n";
-            break;
-        }
-        if (!playerHit)
-        {
-            // хід комп'ютера тільки якщо гравець промахнувся
-            cout << "\nХід комп'ютера:\n";
-            bool aiHit = aiTurn(playerBoard, ai);
-            (void)aiHit;
-            if (playerBoard.allSunk())
+            cout << "Влучання! Ви стріляєте ще раз.\n";
+            if (computerBoard.allSunk())
             {
                 printBothBoards(playerBoard, computerBoard);
-                cout << "Комп'ютер переміг. Спробуйте ще раз!\n";
-                break;
+                cout << "\n*** ПЕРЕМОГА! Ви знищили флот супротивника! ***\n";
+                gameOver = true;
+            }
+        }
+        else
+        {
+            cout << "Промах! Хід переходить до комп'ютера.\n\n";
+
+            bool botTurn = true;
+            while (botTurn && !gameOver)
+            {
+                auto [br, bc] = ai.nextShot(playerBoard.size);
+                ai.shot[br][bc] = true;
+
+                cout << "Комп'ютер стріляє у " << char(bc + 'A') << br + 1 << "... ";
+
+                if (playerBoard.shoot(br, bc))
+                {
+                    cout << "Влучання!\n";
+                    ai.registerHit(br, bc, playerBoard.size);
+
+                    if (playerBoard.allSunk())
+                    {
+                        printBothBoards(playerBoard, computerBoard);
+                        cout << "\n*** ПОРАЗКА! Комп'ютер знищив ваш флот! ***\n";
+                        gameOver = true;
+                    }
+                }
+                else
+                {
+                    cout << "Промах!\n";
+                    botTurn = false;
+                }
             }
         }
     }
 
+    cout << "\n\nНатисніть Enter, щоб вийти...";
+    cin.ignore(10000, '\n');
+    cin.get();
     return 0;
 }
