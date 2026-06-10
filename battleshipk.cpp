@@ -115,7 +115,7 @@ struct Board
 void printBothBoards(const Board &player, const Board &computer)
 {
     cout << "\n  Ваше поле              Поле суперника\n";
-    cout << "   A B C D E F G H I J     A B C D E F G H I J\n";
+    cout << "   A B C D E F G H I J        A B C D E F G H I J\n";
     for (int i = 0; i < player.size; ++i)
     {
         cout << (i < 9 ? " " : "") << i + 1 << " ";
